@@ -5,7 +5,13 @@ import { MongoClient } from "mongodb"
 import Joi from "joi"
 
 const participantScheme = Joi.object({
-    nome: Joi.string().min(3).required()
+    name: Joi.string().min(3).required()
+})
+
+const messageScheme = Joi.object({
+    to: Joi.string().min(3).required(),
+    text: Joi.string().min(10).required(),
+    type: Joi.string().required()
 })
 
 dotenv.config()
@@ -23,16 +29,28 @@ try {
 }
 
 app.post("/participants", async (req, res) => {
-    const {name} = req.body
+    const body = req.body
+    const {name} = body
 
-    const validation = participantScheme.validate(name, {abortEarly: false})
+    const validation = participantScheme.validate(body, { abortEarly: false })
     if (validation.error) {
         const errors = validation.error.details.map(error => error.message)
-        return res.send(errors)
+        return res.status(422).send(errors)
     }
 
     try {
-        await db.collection("participants").insertOne(name)
+        const isValid = await db.collection("participants").findOne({ name: body })
+        if (isValid) {
+            return res.status(409).send({message: "Nome ja cadastrado"})
+        }
+    } catch (err) {
+        console.log(err)
+        return res.status(409).send({message: "Nome da cadastrado"})
+    }
+
+    try {
+        await db.collection("participants").insertOne({ name, lastStatus: Date.now()})
+        console.log("CRIADO");
         return res.status(200).send("Criado")
     } catch (err) {
         console.log(err)
@@ -40,13 +58,62 @@ app.post("/participants", async (req, res) => {
     }
 })
 
-app.get("/participats", async (req, res) => {
+app.get("/participants", async (req, res) => {
     try {
         const participants = await db.collection("participants").find().toArray()
         res.send(participants)
     } catch (err) {
         console.log(err)
-        return res.status(400).send({message: "Erro"})
+        return res.status(400).send({ message: "Erro" })
+    }
+})
+
+app.delete("/participants/deleteAll", async (req, res) => {
+    try {
+        await db.collection("participants").deleteMany({})
+        return res.status(200).send("Participants deleted successfully ")
+    } catch (err) {
+        console.log(err)
+        return res.status(400).send({message: err})
+    }
+})
+
+app.post("/messages", async (req, res) => {
+    const { user } = req.headers
+    const body = req.body
+
+    const validation = messageScheme.validate(body, { abortEarly: false })
+    if (validation.error) {
+        const errors = validation.error.details.map(error => error.message)
+        return res.send(errors)
+    }
+
+    try {
+        await db.collection("messages").insertOne({ to, text, type })
+        return res.status(200).send("Criado")
+    } catch (err) {
+        console.log(err)
+        return res.status(422).send({ message: "Error " })
+    }
+})
+
+app.get("/messages", async (req, res) => {
+    try {
+        const messages = await db.collection("messages").find().toArray()
+        res.send(messages)
+    } catch (err) {
+        console.log(err)
+        return res.status(400).send({ message: "Erro" })
+    }
+})
+
+app.delete("/messages/deleteAll", async (req, res) => {
+    try {
+        await db.collection("messages").deleteMany({})
+        return res.status(200).send("Messages deleted successfully")
+    } catch (err) {
+        console.log(err)
+        return res.status(400).send({message: err})
     }
 })
 
