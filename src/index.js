@@ -3,6 +3,7 @@ import cors from "cors"
 import dotenv from "dotenv"
 import { MongoClient } from "mongodb"
 import Joi from "joi"
+import dayjs from "dayjs"
 
 const participantScheme = Joi.object({
     name: Joi.string().min(3).required()
@@ -29,34 +30,38 @@ try {
 }
 
 app.post("/participants", async (req, res) => {
+    const { User } = req.headers
     const body = req.body
-    const {name} = body
+    const { name } = body
+    const time = dayjs().format('HH:mm:ss')
 
     const validation = participantScheme.validate(body, { abortEarly: false })
     if (validation.error) {
         const errors = validation.error.details.map(error => error.message)
-        return res.status(422).send(errors)
+        return res.status(422).send("Erro ao cadastrar mensagem")
     }
 
     try {
-        const isValid = await db.collection("participants").findOne({ name: body })
+        const isValid = await db.collection("participants").findOne({ name })
         if (isValid) {
-            return res.status(409).send({message: "Nome ja cadastrado"})
+            return res.status(409).send({ message: "Nome ja cadastrado" })
         }
     } catch (err) {
         console.log(err)
-        return res.status(409).send({message: "Nome da cadastrado"})
+        return res.status(409).send({ message: "ERROR" })
     }
 
     try {
-        await db.collection("participants").insertOne({ name, lastStatus: Date.now()})
+        await db.collection("participants").insertOne({ name, lastStatus: Date.now() })
         console.log("CRIADO");
+        await db.collection("messages").insertOne({from: name, to: "Todos", text: "entra na sala...", type: "status", time })
         return res.status(200).send("Criado")
     } catch (err) {
-        console.log(err)
+        console.log("Error to add new name")
         return res.status(400).send(err)
     }
 })
+
 
 app.get("/participants", async (req, res) => {
     try {
@@ -64,7 +69,7 @@ app.get("/participants", async (req, res) => {
         res.send(participants)
     } catch (err) {
         console.log(err)
-        return res.status(400).send({ message: "Erro" })
+        return res.status(400).send({ message: "Error to get the participants" })
     }
 })
 
@@ -74,36 +79,46 @@ app.delete("/participants/deleteAll", async (req, res) => {
         return res.status(200).send("Participants deleted successfully ")
     } catch (err) {
         console.log(err)
-        return res.status(400).send({message: err})
+        return res.status(400).send({ message: err })
     }
 })
 
 app.post("/messages", async (req, res) => {
-    const { user } = req.headers
+    const { User } = req.headers
     const body = req.body
+    const { to, text, type } = body
+    const time = dayjs().format('HH:mm:ss')
 
     const validation = messageScheme.validate(body, { abortEarly: false })
     if (validation.error) {
         const errors = validation.error.details.map(error => error.message)
-        return res.send(errors)
+        return res.status(422).send(errors)
     }
 
     try {
-        await db.collection("messages").insertOne({ to, text, type })
-        return res.status(200).send("Criado")
+        await db.collection("messages").insertOne({ to, text, type, time })
+        return res.status(201).send("Criado")
     } catch (err) {
-        console.log(err)
-        return res.status(422).send({ message: "Error " })
+        console.log("Erro ao enviar mensagem")
+        return res.status(422).send({ message: "Error to post the message" })
     }
 })
 
 app.get("/messages", async (req, res) => {
+    // const { limit } = req.query
+
+    // if (limit) {
+    //     const messages = await db.collection("messages").find().toArray()
+    //     const messagesLimit = messages.slice(limit)
+    //     return res.send(messagesLimit)
+    // }
+
     try {
         const messages = await db.collection("messages").find().toArray()
-        res.send(messages)
+        return res.send(messages)
     } catch (err) {
         console.log(err)
-        return res.status(400).send({ message: "Erro" })
+        return res.status(400).send({ message: "Error to get the messages" })
     }
 })
 
@@ -113,7 +128,7 @@ app.delete("/messages/deleteAll", async (req, res) => {
         return res.status(200).send("Messages deleted successfully")
     } catch (err) {
         console.log(err)
-        return res.status(400).send({message: err})
+        return res.status(400)
     }
 })
 
