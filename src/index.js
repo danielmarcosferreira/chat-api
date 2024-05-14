@@ -148,4 +148,37 @@ app.post("/status", async (req, res) => {
     }
 })
 
+setInterval(async () => {
+    console.log("Removendo Geral!!")
+
+    const dateTenSecondsAgo = Date.now() - 10000
+    // console.log(dateTenSecondsAgo)
+
+    try {
+        const inactivesParticipants = await participantsCollection
+            .find({ lastStatus: { $lte: dateTenSecondsAgo } })
+            .toArray()
+
+        if (inactivesParticipants.length > 0) {
+            const inactivesMessages = inactivesParticipants.map(participant => {
+                return {
+                    from: participant.name,
+                    to: "Todos",
+                    text: "sai da sala...",
+                    type: "status",
+                    time: dayjs().format("HH:mm:ss")
+                }
+            })
+
+            console.log(inactivesMessages);
+
+            await messagesCollection.insertMany(inactivesMessages)
+            await participantsCollection.deleteMany({ lastStatus: { $lte: dateTenSecondsAgo } })
+        }
+    } catch (err) {
+        console.log(err)
+    }
+
+}, 2000)
+
 app.listen(5005, () => console.log("Server Running in port 5005"))
