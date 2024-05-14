@@ -129,4 +129,23 @@ app.get("/messages", async (req, res) => {
     }
 })
 
+app.post("/status", async (req, res) => {
+    const { user } = req.headers
+
+    try {
+        const participantExists = await participantsCollection.findOne({ name: user })
+
+        if (!participantExists) {
+            return res.sendStatus(404)
+        }
+
+        await participantsCollection.updateOne({ name: user }, { $set: { lastStatus: Date.now } })
+
+        return res.sendStatus(200)
+    } catch (err) {
+        console.log(err)
+        return res.sendStatus(500)
+    }
+})
+
 app.listen(5005, () => console.log("Server Running in port 5005"))
