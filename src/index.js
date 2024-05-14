@@ -10,9 +10,11 @@ const participantScheme = Joi.object({
 })
 
 const messageScheme = Joi.object({
+    from: Joi.string().required(),
     to: Joi.string().min(3).required(),
-    text: Joi.string().min(10).required(),
-    type: Joi.string().required()
+    text: Joi.string().min(5).required(),
+    type: Joi.string().required().valid("message", "private_message"),
+    time: Joi.string()
 })
 
 dotenv.config()
@@ -29,22 +31,25 @@ try {
     console.log(err)
 }
 
+const participantsCollection = db.collection("participants")
+const messagesCollection = db.collection("messages")
+
 app.post("/participants", async (req, res) => {
-    const { User } = req.headers
     const body = req.body
     const { name } = body
     const time = dayjs().format('HH:mm:ss')
 
-    const validation = participantScheme.validate(body, { abortEarly: false })
+    const validation = participantScheme.validate({ name }, { abortEarly: false })
+
     if (validation.error) {
         const errors = validation.error.details.map(error => error.message)
-        return res.status(422).send("Erro ao cadastrar mensagem")
+        return res.status(422).send(errors)
     }
 
     try {
-        const isValid = await db.collection("participants").findOne({ name })
-        if (isValid) {
-            return res.status(409).send({ message: "Nome ja cadastrado" })
+        const participantExists = await participantsCollection.findOne({ name })
+        if (participantExists) {
+            return res.status(409).send({ message: "Name already registered" })
         }
     } catch (err) {
         console.log(err)
@@ -52,20 +57,22 @@ app.post("/participants", async (req, res) => {
     }
 
     try {
-        await db.collection("participants").insertOne({ name, lastStatus: Date.now() })
-        console.log("CRIADO");
-        await db.collection("messages").insertOne({from: name, to: "Todos", text: "entra na sala...", type: "status", time })
-        return res.status(200).send("Criado")
+        await participantsCollection.insertOne({ name, lastStatus: Date.now() })
+        console.log("CREATED");
+        await messagesCollection.insertOne({ from: name, to: "Todos", text: "entra na sala...", type: "status", time })
+        return res.status(200).send("Created")
     } catch (err) {
         console.log("Error to add new name")
         return res.status(400).send(err)
     }
 })
 
-
 app.get("/participants", async (req, res) => {
     try {
-        const participants = await db.collection("participants").find().toArray()
+        const participants = await participantsCollection.find().toArray()
+        if (participants.length === 0) {
+            return res.status(404).send({ message: "There is no participants" })
+        }
         res.send(participants)
     } catch (err) {
         console.log(err)
@@ -73,62 +80,42 @@ app.get("/participants", async (req, res) => {
     }
 })
 
-app.delete("/participants/deleteAll", async (req, res) => {
-    try {
-        await db.collection("participants").deleteMany({})
-        return res.status(200).send("Participants deleted successfully ")
-    } catch (err) {
-        console.log(err)
-        return res.status(400).send({ message: err })
-    }
-})
-
 app.post("/messages", async (req, res) => {
-    const { User } = req.headers
     const body = req.body
     const { to, text, type } = body
+    const { user } = req.headers
     const time = dayjs().format('HH:mm:ss')
 
-    const validation = messageScheme.validate(body, { abortEarly: false })
-    if (validation.error) {
-        const errors = validation.error.details.map(error => error.message)
-        return res.status(422).send(errors)
+    const message = {
+        from: user,
+        to,
+        text,
+        type,
+        time
     }
 
     try {
-        await db.collection("messages").insertOne({ to, text, type, time })
-        return res.status(201).send("Criado")
+        const validation = messageScheme.validate(message, { abortEarly: false })
+        if (validation.error) {
+            const errors = validation.error.details.map(error => error.message)
+            return res.status(422).send(errors)
+        }
+
+        await messagesCollection.insertOne(message)
+        return res.status(201).send("Created")
     } catch (err) {
-        console.log("Erro ao enviar mensagem")
+        console.log("Error sending message")
         return res.status(422).send({ message: "Error to post the message" })
     }
 })
 
 app.get("/messages", async (req, res) => {
-    // const { limit } = req.query
-
-    // if (limit) {
-    //     const messages = await db.collection("messages").find().toArray()
-    //     const messagesLimit = messages.slice(limit)
-    //     return res.send(messagesLimit)
-    // }
-
     try {
-        const messages = await db.collection("messages").find().toArray()
+        const messages = await messagesCollection.find().toArray()
         return res.send(messages)
     } catch (err) {
         console.log(err)
         return res.status(400).send({ message: "Error to get the messages" })
-    }
-})
-
-app.delete("/messages/deleteAll", async (req, res) => {
-    try {
-        await db.collection("messages").deleteMany({})
-        return res.status(200).send("Messages deleted successfully")
-    } catch (err) {
-        console.log(err)
-        return res.status(400)
     }
 })
 
