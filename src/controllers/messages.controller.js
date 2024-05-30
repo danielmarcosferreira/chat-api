@@ -1,5 +1,6 @@
 import dayjs from "dayjs"
-import { messageScheme, messagesCollection } from "../index.js"
+import { messagesCollection } from "../dataBase/db.js"
+import { messageScheme } from "../index.js"
 
 export async function postMessage(req, res) {
     const body = req.body

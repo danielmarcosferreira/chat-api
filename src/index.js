@@ -1,7 +1,5 @@
 import express from "express"
 import cors from "cors"
-import dotenv from "dotenv"
-import { MongoClient } from "mongodb"
 import Joi from "joi"
 import { getParticipants, postParticipants, postStatus, removeInactiveParticipants } from "./controllers/participants.controller.js"
 import { getMessages, postMessage } from "./controllers/messages.controller.js"
@@ -18,21 +16,9 @@ export const messageScheme = Joi.object({
     time: Joi.string()
 })
 
-dotenv.config()
 const app = express()
 app.use(cors())
 app.use(express.json())
-const mongoClient = new MongoClient(process.env.MONGO_URI)
-
-try {
-    await mongoClient.connect()
-} catch (err) {
-    console.log(err)
-}
-
-let db = mongoClient.db("contatos")
-export const participantsCollection = db.collection("participants")
-export const messagesCollection = db.collection("messages")
 
 app.post("/participants", postParticipants)
 

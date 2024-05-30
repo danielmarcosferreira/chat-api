@@ -1,4 +1,5 @@
-import { participantScheme, participantsCollection, messagesCollection } from "../index.js"
+import { participantsCollection, messagesCollection } from "..//dataBase/db.js"
+import { participantScheme } from "../index.js"
 import dayjs from "dayjs"
 
 export async function postParticipants(req, res) {
