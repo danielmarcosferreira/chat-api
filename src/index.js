@@ -1,8 +1,9 @@
 import express from "express"
 import cors from "cors"
 import Joi from "joi"
-import { getParticipants, postParticipants, postStatus, removeInactiveParticipants } from "./controllers/participants.controller.js"
-import { getMessages, postMessage } from "./controllers/messages.controller.js"
+import { removeInactiveParticipants } from "./controllers/participants.controller.js"
+import participantsRouters from "./routes/participant.routes.js"
+import messagesRouter from "./routes/messages.routes.js"
 
 export const participantScheme = Joi.object({
     name: Joi.string().min(3).required()
@@ -19,16 +20,8 @@ export const messageScheme = Joi.object({
 const app = express()
 app.use(cors())
 app.use(express.json())
-
-app.post("/participants", postParticipants)
-
-app.get("/participants", getParticipants)
-
-app.post("/messages", postMessage)
-
-app.get("/messages", getMessages)
-
-app.post("/status", postStatus)
+app.use(participantsRouters)
+app.use(messagesRouter)
 
 setInterval(removeInactiveParticipants, 15000)
 
