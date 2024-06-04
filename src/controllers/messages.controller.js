@@ -1,28 +1,10 @@
 import dayjs from "dayjs"
 import { messagesCollection } from "../dataBase/db.js"
-import { messageScheme } from "../index.js"
 
 export async function postMessage(req, res) {
-    const body = req.body
-    const { to, text, type } = body
-    const { user } = req.headers
-    const time = dayjs().format('HH:mm:ss')
-
-    const message = {
-        from: user,
-        to,
-        text,
-        type,
-        time
-    }
+    const message = req.message
 
     try {
-        const validation = messageScheme.validate(message, { abortEarly: false })
-        if (validation.error) {
-            const errors = validation.error.details.map(error => error.message)
-            return res.status(422).send(errors)
-        }
-
         await messagesCollection.insertOne(message)
         return res.status(201).send("Created")
     } catch (err) {
