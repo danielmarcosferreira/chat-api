@@ -1,4 +1,4 @@
-import { messageScheme } from "../index.js"
+import { messageScheme } from "../models/message.model.js"
 import dayjs from "dayjs"
 
 export function schemaMessageValidation(req, res, next) {

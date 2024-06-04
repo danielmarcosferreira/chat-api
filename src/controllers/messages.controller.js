@@ -1,4 +1,3 @@
-import dayjs from "dayjs"
 import { messagesCollection } from "../dataBase/db.js"
 
 export async function postMessage(req, res) {
